@@ -260,40 +260,6 @@ mlflow ui
 
 ---
 
-## 🎬 Apresentação Final (Etapa 8)
-
-### Vídeo Pitch (até 5 minutos)
-
-**Roteiro completo para gravação:** [ROTEIRO_VIDEO_PITCH.md](ROTEIRO_VIDEO_PITCH.md)
-
-Conteúdo esperado:
-1. **Problema de Negócio** (30s)
-   - Contexto: instituição financeira digital
-   - Limitação: regras fixas e testes A/B longos
-
-2. **Solução Proposta** (60s)
-   - Thompson Sampling: exploração + explotação
-   - Adaptação contínua ao comportamento do cliente
-
-3. **Dados e Preparação** (30s)
-   - Base Kaggle: Bank Marketing
-   - Features: idade, emprego, saldo, etc.
-
-4. **Modelo e Resultados** (90s)
-   - Baseline: ~11% conversão
-   - Thompson Sampling: ~15% conversão
-   - Ganho: +36% de melhoria relativa
-
-5. **Demo Prática** (60s)
-   - Executar Etapa 5: API em ação
-   - Cliente exemplo → Oferta recomendada
-
-6. **Conclusões** (30s)
-   - Impacto de negócio: mais ofertas aceitas
-   - Próximos passos: produção com MLflow + AWS
-
----
-
 ## 📂 Estrutura do Repositório
 
 ```
