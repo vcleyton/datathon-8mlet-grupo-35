@@ -8,11 +8,13 @@ Uma instituição financeira digital precisa decidir, em diferentes canais, qual
 - **Reatividade lenta**: Mudanças de contexto e preferências de clientes não são capturadas em tempo real
 - **Personalização limitada**: Regras estáticas não adaptam-se a comportamentos individuais
 
-**Solução proposta**: Uma abordagem **adaptativa baseada em Multi-Armed Bandit** (Thompson Sampling) que:
-- ✅ Identifica comportamentos distintos dos clientes
+**Solução demonstrativa**: Uma abordagem **baseada em Multi-Armed Bandit** (Thompson Sampling) que:
+- ✅ Mantém estimativas de conversão para três braços proxy
 - ✅ Equilibra exploração (testar novas ofertas) com explotação (usar o melhor conhecimento)
 - ✅ Aprende continuamente com respostas observadas
-- ✅ Personaliza ofertas sem congelar decisões em regras estáticas
+- ✅ Demonstra recomendações e atualização Beta com feedback
+
+Nesta versão, as recomendações não são personalizadas por cliente: os atributos recebidos pela API não alteram a política.
 
 ---
 
@@ -22,19 +24,22 @@ Uma instituição financeira digital precisa decidir, em diferentes canais, qual
 
 ### Descrição
 - **Origem**: Campanha de marketing telefônico de uma instituição financeira portuguesa
-- **Tamanho**: 41.188 registros com 20 atributos
-- **Target**: `y` - Cliente subscreve depósito a prazo? (sim/não)
-- **Período**: Maio 2008 - Novembro 2013
+- **Tamanho**: 41.188 registros, 20 atributos preditores e a coluna alvo (`y`), totalizando 21 colunas
+- **Target**: `y` - Cliente subscreve depósito a prazo? (`yes`/`no`)
+- **Período**: Maio de 2008 a novembro de 2010
+- **Formato**: CSV delimitado por ponto e vírgula (`;`)
 
 ### Atributos principais
 | Atributo | Tipo | Descrição |
 |----------|------|-----------|
 | age | Numérico | Idade do cliente |
 | job | Categórico | Tipo de emprego |
-| balance | Numérico | Saldo médio anual (€) |
+| education | Categórico | Escolaridade |
 | duration | Numérico | Duração da última chamada (segundos) |
 | campaign | Numérico | Número de contatos durante esta campanha |
-| pdays | Numérico | Dias desde último contato |
+| pdays | Numérico | Dias desde o último contato (999 indica que não houve contato anterior) |
+| poutcome | Categórico | Resultado da campanha anterior |
+| euribor3m | Numérico | Taxa Euribor de 3 meses |
 | y | Binário | Subscrição (sim/não) |
 
 ---
@@ -43,9 +48,12 @@ Uma instituição financeira digital precisa decidir, em diferentes canais, qual
 
 ### Limpeza de Dados
 - ✅ Removida coluna `duration` (vazamento temporal - não disponível antes da decisão)
-- ✅ Mantidas features de cliente (age, job, balance, etc.)
+- ✅ Removidas duplicatas e linhas com valores ausentes
+- ✅ Mantidas features de cliente, campanha e contexto econômico (age, job, campaign, euribor3m, etc.)
 - ✅ Codificação numérica de categóricas (`LabelEncoder`)
 - ✅ Escalagem de numéricos (StandardScaler)
+
+No arquivo incluído, o carregamento resulta em 41.188 linhas e 21 colunas. A preparação remove 1.784 duplicatas e `duration`, mantendo 39.404 linhas e 19 features para o modelo.
 
 ---
 
@@ -96,15 +104,13 @@ Para cada cliente:
 |---------|---------|---------------|
 | **Taxa de Conversão** | conversões / total | % de clientes que aceitam |
 | **Recompensa Acumulada** | Σ conversões | Total de sucessos |
-| **Regret** | (baseline_total - adaptativo_total) | Oportunidades perdidas |
-| **Exploration Rate** | ação_não_ótima / total | % de vezes que explora |
+
+No resultado atualmente registrado no notebook, Baseline e Thompson Sampling obtiveram **11,67%** no conjunto de teste (920 conversões em 7.881 exemplos), sem diferença entre as políticas. Essa comparação não demonstra superioridade: o mesmo target `y_test` é contado para qualquer braço recomendado e a base não registra a oferta realmente exibida. Portanto, esses valores não estimam o efeito de cada oferta nem um ganho causal. O código também não calcula regret válido; a métrica chamada `exploration_rate` não deve ser interpretada como uma avaliação confiável da exploração nesta simulação.
 
 ### Golden Set (5 Exemplos de Teste)
-O projeto inclui 5 casos de teste representativos mostrando:
-- Cliente jovem / cliente senior
-- Alta renda / baixa renda
-- Cliente novo / cliente conhecido
-- Para cada um: qual oferta o modelo recomenda e raciocínio
+O script `test_model.py` envia cinco perfis fictícios ao modelo e mostra as recomendações e estimativas globais por braço. Na execução verificada, os cinco perfis receberam o braço 0. Este Golden Set funciona como uma checagem básica de que o modelo carrega e retorna uma opção válida; não mede acerto, adequação individual ou personalização.
+
+Os três braços são proxies atribuídos por tercis de idade porque a base não registra a oferta apresentada em cada contato. O modelo atual é não contextual: os atributos do cliente não alteram a recomendação. 
 
 ---
 
@@ -121,7 +127,6 @@ O projeto inclui 5 casos de teste representativos mostrando:
 {
   "idade": 35,
   "emprego": "technician",
-  "saldo": 1234.56,
   "campanha": 2,
   "pdays": 15,
   "mes": "may",
@@ -132,13 +137,17 @@ O projeto inclui 5 casos de teste representativos mostrando:
 **Response**:
 ```json
 {
-  "cliente_id": "C001",
-  "oferta_recomendada": "produto_A",
-  "probabilidade_sucesso": 0.62,
-  "algoritmo": "thompson_sampling",
-  "timestamp": "2024-01-15T10:30:00Z"
+   "cliente_id": "CLI_1790866345",
+   "oferta_recomendada": 0,
+   "nome_oferta": "Produto Premium",
+   "probabilidade_sucesso": 0.1405,
+   "algoritmo": "Thompson Sampling",
+   "timestamp": "2026-10-01T11:52:25.211495",
+   "confianca": "Baixa"
 }
 ```
+
+Os campos do cliente são aceitos pela API, mas a política atual usa as taxas globais dos braços e não condiciona a recomendação a esses atributos.
 
 ### Como Usar
 
@@ -229,24 +238,17 @@ Todos os experimentos são rastreados com MLflow:
 import mlflow
 import mlflow.sklearn
 
-# Log de parâmetros
-mlflow.log_param("algorithm", "thompson_sampling")
-mlflow.log_param("alpha_prior", 1.0)
-mlflow.log_param("beta_prior", 1.0)
-
-# Log de métricas
-mlflow.log_metric("baseline_conversion", 0.11)
-mlflow.log_metric("thompson_conversion", 0.15)
-mlflow.log_metric("regret", 0.04)
-
-# Log do modelo
-mlflow.sklearn.log_model(model, "thompson_model")
+# O pipeline registra as métricas calculadas na execução, sem valores de exemplo.
+mlflow.log_metric("baseline_conversion_rate", baseline_metrics["conversion_rate"])
+mlflow.log_metric("thompson_conversion_rate", thompson_metrics["conversion_rate"])
+mlflow.log_metric("melhoria_conversao_absoluta", melhoria)
+mlflow.sklearn.log_model(thompson, "thompson_sampling_model")
 ```
 
 ### Artefatos Registrados
 - ✅ Parâmetros do modelo (priors, estratégia de exploração)
-- ✅ Métricas de desempenho (conversão, regret, exploration rate)
-- ✅ Dados de treinamento (versão da base Kaggle)
+- ✅ Métricas calculadas no pipeline (conversão, recompensa e exploração reportada)
+- ✅ Identificação do dataset e parâmetros do experimento
 - ✅ Modelo serializado (pickle)
 
 ### Execução
@@ -317,7 +319,7 @@ pip install -r requirements.txt
 # Baixe a base Kaggle
 # - Acesse https://www.kaggle.com/datasets/henriqueyamahata/bank-marketing
 # - Clique em "Download"
-# - Descompacte em data/bank-marketing.csv
+# - Salve o CSV delimitado por ponto e virgula em data/bank-marketing.csv
 ```
 
 ### 3. Executar Análise Exploratória
@@ -354,7 +356,6 @@ curl -X POST http://localhost:8000/recomenda-oferta \
   -d '{
     "idade": 35,
     "emprego": "technician",
-    "saldo": 1234.56,
     "campanha": 2,
     "pdays": 15,
     "mes": "may",

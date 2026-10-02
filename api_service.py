@@ -33,8 +33,6 @@ app = FastAPI(
 # Estado global
 model_state = {
     'thompson_model': None,
-    'scaler': None,
-    'feature_names': None,
     'loaded': False
 }
 
@@ -45,7 +43,6 @@ class ClienteRequest(BaseModel):
     """Request com features do cliente"""
     idade: int
     emprego: str
-    saldo: float
     campanha: int
     pdays: int
     mes: str
@@ -55,7 +52,6 @@ class ClienteRequest(BaseModel):
         example = {
             "idade": 35,
             "emprego": "technician",
-            "saldo": 1234.56,
             "campanha": 2,
             "pdays": 15,
             "mes": "may",
@@ -104,6 +100,8 @@ async def recomenda_oferta(cliente: ClienteRequest):
     - Amostra da distribuição para cada oferta
     - Escolhe a oferta com maior amostra
     - Adapta-se conforme recebe feedback
+
+    Os atributos recebidos nao condicionam a recomendacao nesta versao nao contextual.
     """
     
     if not model_state['loaded']:
@@ -113,28 +111,9 @@ async def recomenda_oferta(cliente: ClienteRequest):
         )
     
     try:
-        # Construir vetor de features
-        # Nota: em produção, isso seria feito com transformação apropriada
-        features = np.array([[
-            cliente.idade,
-            hash(cliente.emprego) % 100,  # Codificação simples
-            cliente.saldo,
-            cliente.campanha,
-            cliente.pdays,
-            hash(cliente.mes) % 12,  # Codificação simples
-            hash(cliente.poutcome) % 10  # Codificação simples
-        ]])
-        
-        # Normalizar
-        if model_state['scaler']:
-            features = model_state['scaler'].transform(features)
-        
-        # Predição
+        # A politica atual usa apenas as taxas globais dos bracos.
         thompson_model = model_state['thompson_model']
-        
-        # Braço recomendado
-        bracos_amostrados = np.random.beta(thompson_model.alpha, thompson_model.beta)
-        braço_recomendado = int(np.argmax(bracos_amostrados))
+        braço_recomendado = int(thompson_model.predict(np.empty((1, 0)))[0])
         
         # Probabilidade de sucesso
         proba = thompson_model.alpha[braço_recomendado] / (
@@ -241,9 +220,17 @@ async def atualizar_modelo(oferta_id: int, conversao: int):
     
     if not model_state['loaded']:
         raise HTTPException(status_code=503, detail="Modelo não carregado")
+
+    thompson_model = model_state['thompson_model']
+    if not 0 <= oferta_id < thompson_model.num_arms:
+        raise HTTPException(
+            status_code=422,
+            detail=f"oferta_id deve estar entre 0 e {thompson_model.num_arms - 1}",
+        )
+    if conversao not in (0, 1):
+        raise HTTPException(status_code=422, detail="conversao deve ser 0 ou 1")
     
     try:
-        thompson_model = model_state['thompson_model']
         thompson_model.update(oferta_id, conversao)
         
         logger.info(f"Modelo atualizado: Oferta {oferta_id}, Conversão {conversao}")
@@ -268,7 +255,6 @@ def load_model():
         # Caminhos
         models_dir = Path(__file__).parent / "models"
         model_file = models_dir / "thompson_model.pkl"
-        scaler_file = models_dir / "scaler.pkl"
         
         if not model_file.exists():
             logger.warning(f"Arquivo de modelo não encontrado: {model_file}")
@@ -277,10 +263,8 @@ def load_model():
         
         # Carregar modelo
         thompson_model = joblib.load(model_file)
-        scaler = joblib.load(scaler_file) if scaler_file.exists() else None
         
         model_state['thompson_model'] = thompson_model
-        model_state['scaler'] = scaler
         model_state['loaded'] = True
         
         logger.info("✓ Modelo Thompson Sampling carregado com sucesso")

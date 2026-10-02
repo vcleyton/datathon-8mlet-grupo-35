@@ -47,36 +47,51 @@ def test_golden_set():
             "id": "CLI_001",
             "idade": 32,
             "emprego": "technician",
-            "saldo": 1500,
-            "descricao": "Cliente jovem, técnico, saldo médio"
+            "campanha": 2,
+            "pdays": 999,
+            "mes": "may",
+            "poutcome": "nonexistent",
+            "descricao": "Cliente jovem, técnico, sem contato anterior"
         },
         {
             "id": "CLI_002",
             "idade": 58,
             "emprego": "retired",
-            "saldo": 5000,
-            "descricao": "Cliente sênior, aposentado, alto saldo"
+            "campanha": 1,
+            "pdays": 999,
+            "mes": "sep",
+            "poutcome": "nonexistent",
+            "descricao": "Cliente sênior, aposentado, sem contato anterior"
         },
         {
             "id": "CLI_003",
             "idade": 25,
             "emprego": "student",
-            "saldo": 100,
-            "descricao": "Cliente jovem, estudante, baixo saldo"
+            "campanha": 3,
+            "pdays": 15,
+            "mes": "may",
+            "poutcome": "failure",
+            "descricao": "Cliente jovem, estudante, contato anterior sem conversão"
         },
         {
             "id": "CLI_004",
             "idade": 45,
             "emprego": "management",
-            "saldo": 3000,
-            "descricao": "Cliente meio-carreira, gerência, saldo alto"
+            "campanha": 2,
+            "pdays": 15,
+            "mes": "oct",
+            "poutcome": "success",
+            "descricao": "Cliente de meia-idade, gerência, contato anterior convertido"
         },
         {
             "id": "CLI_005",
             "idade": 50,
             "emprego": "blue-collar",
-            "saldo": 500,
-            "descricao": "Cliente experiente, trabalho manual, saldo baixo"
+            "campanha": 4,
+            "pdays": 999,
+            "mes": "jul",
+            "poutcome": "nonexistent",
+            "descricao": "Cliente experiente, trabalho manual, sem contato anterior"
         }
     ]
     
@@ -98,16 +113,11 @@ def test_golden_set():
         logger.info(f"Descrição: {exemplo['descricao']}")
         logger.info(f"  • Idade: {exemplo['idade']} anos")
         logger.info(f"  • Emprego: {exemplo['emprego']}")
-        logger.info(f"  • Saldo: €{exemplo['saldo']:,.0f}")
+        logger.info(f"  • Campanha: {exemplo['campanha']} contatos")
+        logger.info(f"  • Dias desde o contato anterior: {exemplo['pdays']}")
         
-        # Criar feature vector fictício (escala 0-1)
-        X = np.array([[
-            exemplo['idade'] / 100,
-            hash(exemplo['emprego']) % 10 / 10,
-            exemplo['saldo'] / 10000,
-            1.0,  # campaign
-            100.0  # pdays
-        ]])
+        # A política atual nao usa as features do cliente.
+        X = np.empty((1, 0))
         
         # Recomendação
         recomendacao = thompson.predict(X)[0]
@@ -121,13 +131,7 @@ def test_golden_set():
             barra = "█" * int(confianca * 20) + "░" * (20 - int(confianca * 20))
             logger.info(f"     Oferta {j}: {barra} {confianca:.1%}")
         
-        # Raciocínio
-        if recomendacao == 0:
-            logger.info(f"  💡 Raciocínio: Cliente tem saldo alto, oferecer produto premium")
-        elif recomendacao == 1:
-            logger.info(f"  💡 Raciocínio: Cliente tem saldo médio, oferecer produto standard")
-        else:
-            logger.info(f"  💡 Raciocínio: Cliente tem saldo baixo, oferecer produto básico")
+        logger.info("  Nota: a recomendação usa as taxas globais dos braços, não o perfil do cliente.")
     
     logger.info("\n" + "=" * 80)
     logger.info("✓ TESTE CONCLUÍDO")

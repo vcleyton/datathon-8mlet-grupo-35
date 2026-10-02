@@ -116,24 +116,24 @@ def plot_eda(df: pd.DataFrame, output_dir: Path):
     plt.close()
     logger.info("✓ Salvo: conversion_by_job.png")
     
-    # 5. Distribuição de saldo
+    # 5. Distribuição de contatos na campanha
     fig, axes = plt.subplots(1, 2, figsize=(12, 4))
     
-    df['balance'].hist(bins=50, ax=axes[0], color='#FFD3B6', edgecolor='black')
-    axes[0].set_title('Distribuição de Saldo')
-    axes[0].set_xlabel('Saldo (€)')
+    df['campaign'].hist(bins=50, ax=axes[0], color='#FFD3B6', edgecolor='black')
+    axes[0].set_title('Contatos na Campanha')
+    axes[0].set_xlabel('Número de contatos')
     axes[0].set_ylabel('Frequência')
     
-    df.boxplot(column='balance', by='y', ax=axes[1])
-    axes[1].set_title('Saldo por Status de Conversão')
+    df.boxplot(column='campaign', by='y', ax=axes[1])
+    axes[1].set_title('Contatos por Status de Conversão')
     axes[1].set_xlabel('Conversão')
-    axes[1].set_ylabel('Saldo (€)')
+    axes[1].set_ylabel('Número de contatos')
     plt.suptitle('')
     
     plt.tight_layout()
-    plt.savefig(output_dir / 'balance_distribution.png', dpi=100, bbox_inches='tight')
+    plt.savefig(output_dir / 'campaign_distribution.png', dpi=100, bbox_inches='tight')
     plt.close()
-    logger.info("✓ Salvo: balance_distribution.png")
+    logger.info("✓ Salvo: campaign_distribution.png")
     
     logger.info(f"✓ Visualizações salvas em {output_dir}")
 
@@ -167,7 +167,7 @@ def create_golden_set_examples(X_test: np.ndarray, y_test: np.ndarray,
             'Acerto_Baseline': 'Sim' if baseline_golden[i] == 0 else 'Não',  # Baseline sempre oferece 0
             'Feature_1_Idade': f'{feature_summary[0]:.0f}',
             'Feature_2_Emprego_Code': f'{feature_summary[1]:.0f}',
-            'Feature_3_Saldo': f'{feature_summary[2]:.0f}',
+            'Feature_3_Estado_Civil_Code': f'{feature_summary[2]:.0f}',
         })
     
     golden_df = pd.DataFrame(golden_data)
@@ -232,12 +232,12 @@ def main():
     logger.info("\n[ETAPA 3] Baseline e Algoritmo Adaptativo")
     logger.info("-" * 80)
     
-    # Simular três ofertas proxy usando tercis do saldo no conjunto de treino.
-    balance_index = feature_names.index('balance')
+    # Simular três ofertas proxy usando tercis de idade no conjunto de treino.
+    age_index = feature_names.index('age')
     arm_quantiles = np.arange(1, THOMPSON_NUM_ARMS) / THOMPSON_NUM_ARMS
-    arm_thresholds = np.quantile(X_train[:, balance_index], arm_quantiles)
-    y_train_arms = np.digitize(X_train[:, balance_index], arm_thresholds)
-    y_test_arms = np.digitize(X_test[:, balance_index], arm_thresholds)
+    arm_thresholds = np.quantile(X_train[:, age_index], arm_quantiles)
+    y_train_arms = np.digitize(X_train[:, age_index], arm_thresholds)
+    y_test_arms = np.digitize(X_test[:, age_index], arm_thresholds)
     
     logger.info(f"✓ {THOMPSON_NUM_ARMS} ofertas simuladas")
     logger.info(f"  Treino: {np.bincount(y_train_arms)}")
@@ -297,7 +297,7 @@ def main():
     # Golden Set (5 exemplos)
     logger.info("\nGolden Set (5 casos de teste):")
     golden_df = create_golden_set_examples(
-        X_test_scaled, y_test, feature_names,
+        X_test, y_test, feature_names,
         baseline_pred_test, thompson_pred_test, n_examples=5
     )
     

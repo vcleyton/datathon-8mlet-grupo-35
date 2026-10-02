@@ -19,7 +19,7 @@ KAGGLE_DATASET = "bank-marketing"
 DATA_FILE = DATA_DIR / "bank-marketing.csv"
 
 # Configurações MLflow
-MLFLOW_TRACKING_URI = str(MLRUNS_DIR)
+MLFLOW_TRACKING_URI = MLRUNS_DIR.resolve().as_uri()
 MLFLOW_EXPERIMENT_NAME = "datathon-grupo-35"
 
 # Thompson Sampling

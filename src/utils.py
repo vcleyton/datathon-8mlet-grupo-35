@@ -21,7 +21,7 @@ def load_data(filepath: str) -> pd.DataFrame:
         DataFrame com dados brutos
     """
     logger.info(f"Carregando dados de {filepath}")
-    df = pd.read_csv(filepath)
+    df = pd.read_csv(filepath, sep=';')
     logger.info(f"Dados carregados: {df.shape[0]} linhas, {df.shape[1]} colunas")
     return df
 
